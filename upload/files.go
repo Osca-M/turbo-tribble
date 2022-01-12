@@ -3,8 +3,11 @@ package upload
 import (
 	"database/sql"
 	"fmt"
+
+	"time"
 )
 
+// File holds information on our documents that we will be storing
 type File struct {
 	Id           string `json:"Id"`
 	Name         string `json:"name"`
@@ -13,7 +16,7 @@ type File struct {
 }
 
 // CreateDB connects to our database, creates the files table that can store File data
-func CreateDB(db *sql.DB) error {
+func CreateTable(db *sql.DB) error {
 	fmt.Println("creating table")
 	_, err := db.Exec(`
 			CREATE TABLE IF NOT EXISTS files (
@@ -27,43 +30,19 @@ func CreateDB(db *sql.DB) error {
 	return err
 }
 
-// func (invoiceModel InvoiceModel) FindInvoicesBetween(from, to time.Time) ([]entities.Invoice, error) {
-// 	rows, err := invoiceModel.Db.Query("select * from invoice where orderDate between ? and ?", from.Format("2006-01-02"), to.Format("2006-01-02"))
-// 	if err != nil {
-// 		return nil, err
-// 	} else {
-// 		invoices := []entities.Invoice{}
-// 		for rows.Next() {
-// 			var id int64
-// 			var name string
-// 			var orderDate string
-// 			var status string
-// 			err2 := rows.Scan(&id, &name, &orderDate, &status)
-// 			if err2 != nil {
-// 				return nil, err2
-// 			} else {
-// 				invoice := entities.Invoice{id, name, orderDate, status}
-// 				invoices = append(invoices, invoice)
-// 			}
-// 		}
-// 		return invoices, nil
-// 	}
-// }
+// GetFile Queries the db for a file record using its ID
+func GetFile(db *sql.DB, id int) *sql.Row {
+	row := db.QueryRow("SELECT * FROM files WHERE id = $1", id)
+	return row
+}
 
-// func getFile(w http.ResponseWriter, r *http.Request) {
-// 	vars := mux.Vars(r)
-// 	key := vars["id"]
-// 	for _, file := range File {
-// 		if article.Id == key {
-// 			json.NewEncoder(w).Encode(article)
-// 		}
-// 	}
-// }
-
-// func createArticle(w http.ResponseWriter, r *http.Request) {
-// 	reqBody, _ := ioutil.ReadAll(r.Body)
-// 	var article Article
-// 	json.Unmarshal(reqBody, &article)
-// 	Articles = append(Articles, article)
-// 	json.NewEncoder(w).Encode(article)
-// }
+// CreateFile Inserts a file instance into the database
+func CreateFile(db *sql.DB, name string, uploaded_by string) error {
+	currentTime := time.Now().Format("2022-01-12")
+	sqlStatement := `INSERT INTO files (name, uploaded_by, date_uploaded) VALUES ($1, $2, $3 )`
+	_, err := db.Exec(sqlStatement, name, uploaded_by, currentTime)
+	if err != nil {
+		panic(err)
+	}
+	return err
+}

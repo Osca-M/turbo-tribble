@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = upload.CreateDB(sqlDB)
+	err = upload.CreateTable(sqlDB)
 	if err != nil {
 		log.Fatal(err)
 	}
