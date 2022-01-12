@@ -3,7 +3,6 @@ package upload
 import (
 	"database/sql"
 	"fmt"
-
 	"time"
 )
 
@@ -40,7 +39,9 @@ func GetFile(db *sql.DB, id int) *sql.Row {
 
 // CreateFile Inserts a file instance into the database
 func CreateFile(db *sql.DB, name string, path string, uploaded_by string) error {
-	currentTime := time.Now().Format("2022-01-12")
+	now := time.Now().Local()
+	currentTime := now.Format("2006-02-01")
+	fmt.Println(currentTime, "currentTime")
 	sqlStatement := `INSERT INTO files (name, path, uploaded_by, date_uploaded) VALUES ($1, $2, $3, $4)`
 	_, err := db.Exec(sqlStatement, name, path, uploaded_by, currentTime)
 	if err != nil {

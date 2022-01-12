@@ -30,6 +30,16 @@ var psqlInfo = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmod
 const MAX_UPLOAD_SIZE = 10240 * 1024 // 10MB
 const FILE_ROOT_DIRECTORY = "/opt/file_manager/uploads"
 
+// sqlDB returns a pointer to our database and closes the database connection when done
+func sqlDB() *sql.DB {
+	sqlDB, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
+	}
+	// defer sqlDB.Close()
+	return sqlDB
+}
+
 func apiRoot(w http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprintf(w, "Welcome to our API Root!")
 }
@@ -89,7 +99,8 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 			}
 
 			year, month, day := time.Now().Date()
-			uploadDirectory := fmt.Sprint(FILE_ROOT_DIRECTORY, "/", year, "/", month, "/", day, "/", time.Now().Hour())
+			timeStamp := fmt.Sprint("/", year, "/", month, "/", day, "/", time.Now().Hour())
+			uploadDirectory := fmt.Sprint(FILE_ROOT_DIRECTORY, timeStamp)
 
 			err = os.MkdirAll(uploadDirectory, os.ModePerm)
 			if err != nil {
@@ -97,9 +108,12 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			filePath := fmt.Sprint(uploadDirectory, "/", time.Now().UnixNano())
+			newFileName := time.Now().UnixNano()
+			ext := filepath.Ext(fileHeader.Filename)
 
-			f, err := os.Create(fmt.Sprintf("%s%s", filePath, filepath.Ext(fileHeader.Filename)))
+			filePath := fmt.Sprint(uploadDirectory, "/", newFileName, ext)
+
+			f, err := os.Create(filePath)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -111,6 +125,14 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
+			}
+
+			// Save to DB
+			// TODO Replace hard-coded user, handle errors better, make transactions atomic, return messages in a friendly manner
+			err = upload.CreateFile(sqlDB(), key, fmt.Sprint(timeStamp, "/", newFileName, ext), "Hard-coded user")
+			if err != nil {
+				fmt.Errorf("An error occured", err)
+				panic(err)
 			}
 		}
 	}
