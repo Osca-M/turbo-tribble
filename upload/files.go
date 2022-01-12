@@ -11,6 +11,7 @@ import (
 type File struct {
 	Id           string `json:"Id"`
 	Name         string `json:"name"`
+	Path         string `json:"path"`
 	UploadedBy   string `json:"uploaded_by"`
 	DateUploaded string `json:"date_uploaded"`
 }
@@ -22,6 +23,7 @@ func CreateTable(db *sql.DB) error {
 			CREATE TABLE IF NOT EXISTS files (
 			    id SERIAL NOT NULL PRIMARY KEY,
 			    name VARCHAR(250) NOT NULL,
+				path VARCHAR NOT NULL,
 				uploaded_by VARCHAR(250) NOT NULL,
 			    date_uploaded DATE NOT NULL
 			);
@@ -37,10 +39,10 @@ func GetFile(db *sql.DB, id int) *sql.Row {
 }
 
 // CreateFile Inserts a file instance into the database
-func CreateFile(db *sql.DB, name string, uploaded_by string) error {
+func CreateFile(db *sql.DB, name string, path string, uploaded_by string) error {
 	currentTime := time.Now().Format("2022-01-12")
-	sqlStatement := `INSERT INTO files (name, uploaded_by, date_uploaded) VALUES ($1, $2, $3 )`
-	_, err := db.Exec(sqlStatement, name, uploaded_by, currentTime)
+	sqlStatement := `INSERT INTO files (name, path, uploaded_by, date_uploaded) VALUES ($1, $2, $3, $4)`
+	_, err := db.Exec(sqlStatement, name, path, uploaded_by, currentTime)
 	if err != nil {
 		panic(err)
 	}
