@@ -39,9 +39,7 @@ func GetFile(db *sql.DB, id int) *sql.Row {
 
 // CreateFile Inserts a file instance into the database
 func CreateFile(db *sql.DB, name string, path string, uploaded_by string) error {
-	now := time.Now().Local()
-	currentTime := now.Format("2006-02-01")
-	log.Println("currentTime: ", currentTime)
+	currentTime := time.Now().Format(time.RFC3339)
 	sqlStatement := `INSERT INTO files (name, path, uploaded_by, date_uploaded) VALUES ($1, $2, $3, $4)`
 	_, err := db.Exec(sqlStatement, name, path, uploaded_by, currentTime)
 	if err != nil {
