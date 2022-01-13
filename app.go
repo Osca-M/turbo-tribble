@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -56,6 +57,14 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// var uploadedFiles []file.File
+
+	// Create a new context, and begin a transaction
+	ctx := context.Background()
+	tx, err := sqlDB().BeginTx(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// `tx` is an instance of `*sql.Tx` through which we can execute our queries
 
 	for key := range r.MultipartForm.File {
 
@@ -129,15 +138,24 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 
 			// Save to DB
 			// TODO Replace hard-coded user, handle errors better, make transactions atomic, return messages in a friendly manner
-			err = upload.CreateFile(sqlDB(), key, fmt.Sprint(timeStamp, "/", newFileName, ext), "Hard-coded user")
+			err = upload.CreateFile(tx, ctx, key, fmt.Sprint(timeStamp, "/", newFileName, ext), "Hard-coded user")
 			if err != nil {
-				// fmt.Errorf("error uploading file %s: %w", key, err)
+				// Incase we find any error in the query execution, rollback the transaction
+				tx.Rollback()
 				log.Print(fmt.Errorf("ERROR error uploading %s: %w", key, err))
 				http.Error(w, fmt.Sprintf("error uploading %s, try again later", key), 400)
 				return
 			}
 		}
 	}
+	err = tx.Commit()
+	if err != nil {
+		log.Print(fmt.Errorf("ERROR committing upload to DB %w", err))
+		http.Error(w, fmt.Sprintf("error with uploading try again later"), 400)
+		return
+	}
+	http.Error(w, "Upload was successful", 201)
+	return
 }
 
 func handleRequests() {

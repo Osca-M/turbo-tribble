@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"time"
@@ -38,10 +39,10 @@ func GetFile(db *sql.DB, id int) *sql.Row {
 }
 
 // CreateFile Inserts a file instance into the database
-func CreateFile(db *sql.DB, name string, path string, uploaded_by string) error {
+func CreateFile(tx *sql.Tx, ctx context.Context, name string, path string, uploaded_by string) error {
 	currentTime := time.Now().Format(time.RFC3339)
-	sqlStatement := `INSERT INTO files (name, path, uploaded_by, date_uploaded) VALUES ($1, $2, $3, $4)`
-	_, err := db.Exec(sqlStatement, name, path, uploaded_by, currentTime)
+	_, err := tx.ExecContext(ctx, `INSERT INTO files (name, path, uploaded_by, date_uploaded) VALUES ($1, $2, $3, $4)`, name, path, uploaded_by, currentTime)
+	// _, err := db.Exec(sqlStatement, name, path, uploaded_by, currentTime)
 	if err != nil {
 		return err
 	}
