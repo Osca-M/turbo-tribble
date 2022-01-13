@@ -131,8 +131,10 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 			// TODO Replace hard-coded user, handle errors better, make transactions atomic, return messages in a friendly manner
 			err = upload.CreateFile(sqlDB(), key, fmt.Sprint(timeStamp, "/", newFileName, ext), "Hard-coded user")
 			if err != nil {
-				fmt.Errorf("An error occured", err)
-				panic(err)
+				// fmt.Errorf("error uploading file %s: %w", key, err)
+				log.Print(fmt.Errorf("ERROR error uploading %s: %w", key, err))
+				http.Error(w, fmt.Sprintf("error uploading %s, try again later", key), 400)
+				return
 			}
 		}
 	}

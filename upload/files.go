@@ -2,7 +2,7 @@ package upload
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
 	"time"
 )
 
@@ -17,7 +17,7 @@ type File struct {
 
 // CreateDB connects to our database, creates the files table that can store File data
 func CreateTable(db *sql.DB) error {
-	fmt.Println("creating table")
+	log.Println("creating table")
 	_, err := db.Exec(`
 			CREATE TABLE IF NOT EXISTS files (
 			    id SERIAL NOT NULL PRIMARY KEY,
@@ -27,7 +27,7 @@ func CreateTable(db *sql.DB) error {
 			    date_uploaded DATE NOT NULL
 			);
 		`)
-	fmt.Println("created db")
+	log.Println("created db")
 	return err
 }
 
@@ -41,11 +41,11 @@ func GetFile(db *sql.DB, id int) *sql.Row {
 func CreateFile(db *sql.DB, name string, path string, uploaded_by string) error {
 	now := time.Now().Local()
 	currentTime := now.Format("2006-02-01")
-	fmt.Println(currentTime, "currentTime")
+	log.Println("currentTime: ", currentTime)
 	sqlStatement := `INSERT INTO files (name, path, uploaded_by, date_uploaded) VALUES ($1, $2, $3, $4)`
 	_, err := db.Exec(sqlStatement, name, path, uploaded_by, currentTime)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	return err
+	return nil
 }
