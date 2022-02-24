@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -46,13 +47,27 @@ func apiRoot(w http.ResponseWriter, _ *http.Request) {
 }
 
 func uploadFiles(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	response := make(map[string]string)
 	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		response["detail"] = "Method not allowed"
+		jsonResp, err := json.Marshal(response)
+		if err != nil {
+			log.Printf("Error happened in JSON marshal. Err: %s", err)
+		}
+		w.Write(jsonResp)
 		return
 	}
 
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
+		response["detail"] = fmt.Sprintf(err.Error())
+		jsonResp, err := json.Marshal(response)
+		if err != nil {
+			log.Printf("Error happened in JSON marshal. Err: %s", err)
+		}
+		w.Write(jsonResp)
 		return
 	}
 
@@ -76,14 +91,26 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 			// a specified value, use the http.MaxBytesReader() method
 			// before calling ParseMultipartForm()
 			if fileHeader.Size > MAX_UPLOAD_SIZE {
-				http.Error(w, fmt.Sprintf("The uploaded file is too big: %s. Please use a file less than 10MB in size", fileHeader.Filename), http.StatusBadRequest)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = fmt.Sprintf("The uploaded file is too big: %s. Please use a file less than 10MB in size", fileHeader.Filename)
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in JSON marshal. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 
 			// Open the file
 			file, err := fileHeader.Open()
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = fmt.Sprintf("File is damaged: %v.", err.Error())
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in JSON marshal. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 			defer file.Close()
@@ -91,19 +118,37 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 			buff := make([]byte, 512)
 			_, err = file.Read(buff)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = "Invalid file"
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in reading file. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 
 			filetype := http.DetectContentType(buff)
 			if filetype != "image/jpeg" && filetype != "image/png" && filetype != "application/zip" && filetype != "application/pdf" {
-				http.Error(w, "The provided file format is not allowed. Please upload files in JPEG, PNG, ZIP or PDF format", http.StatusBadRequest)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = "The provided file format is not allowed. Please upload files in JPEG, PNG, ZIP or PDF format"
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in file format checking. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 
 			_, err = file.Seek(0, io.SeekStart)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = "Invalid file"
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in reading file. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 
@@ -113,7 +158,13 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 
 			err = os.MkdirAll(uploadDirectory, os.ModePerm)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = "We are working to resolve our API outage"
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in copying file. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 
@@ -124,7 +175,13 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 
 			f, err := os.Create(filePath)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = "We are working to resolve our API outage"
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in copying file. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 
@@ -132,7 +189,13 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 
 			_, err = io.Copy(f, file)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = "We are working to resolve our API outage"
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in copying file. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 
@@ -142,20 +205,44 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				// Incase we find any error in the query execution, rollback the transaction
 				tx.Rollback()
-				log.Print(fmt.Errorf("ERROR error uploading %s: %w", key, err))
-				http.Error(w, fmt.Sprintf("error uploading %s, try again later", key), 400)
+				w.WriteHeader(http.StatusBadRequest)
+				response["detail"] = "We are working to resolve our API outage"
+				jsonResp, err := json.Marshal(response)
+				if err != nil {
+					log.Printf("Error happened in saving to DB. Err: %s", err)
+				}
+				w.Write(jsonResp)
 				return
 			}
 		}
 	}
 	err = tx.Commit()
 	if err != nil {
-		log.Print(fmt.Errorf("ERROR committing upload to DB %w", err))
-		http.Error(w, fmt.Sprintf("error with uploading try again later"), 400)
+		w.WriteHeader(http.StatusBadRequest)
+		response["detail"] = "We are working to resolve our API outage"
+		jsonResp, err := json.Marshal(response)
+		if err != nil {
+			log.Printf("Error happened in committing to DB. Err: %s", err)
+		}
+		w.Write(jsonResp)
 		return
 	}
-	http.Error(w, "Upload was successful", 201)
+	w.WriteHeader(http.StatusCreated)
+	response["detail"] = "Upload was successful"
+	jsonResp, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Error happened in responding to user. Err: %s", err)
+	}
+	w.Write(jsonResp)
 	return
+
+	// resp["message"] = "Upload was successful"
+	// jsonResp, err := json.Marshal(resp)
+	// if err != nil {
+	// 	log.Fatalf("Error happened in JSON marshal. Err: %s", err)
+	// }
+	// w.Write(jsonResp)
+	// return
 }
 
 func handleRequests() {
