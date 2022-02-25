@@ -9,7 +9,7 @@ import (
 
 // File holds information on our documents that we will be storing
 type File struct {
-	Id           string `json:"Id"`
+	Id           string `json:"id"`
 	Name         string `json:"name"`
 	Path         string `json:"path"`
 	UploadedBy   string `json:"uploaded_by"`

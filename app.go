@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -245,10 +246,50 @@ func uploadFiles(w http.ResponseWriter, r *http.Request) {
 	// return
 }
 
+func getFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	response := make(map[string]string)
+	key := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(key)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		response["detail"] = "Invalid file ID"
+		jsonResp, err := json.Marshal(response)
+		if err != nil {
+			log.Printf("error converting string to int")
+		}
+		w.Write(jsonResp)
+		return
+	}
+	
+	row := upload.GetFile(sqlDB(), id)
+	var f upload.File
+	err = row.Scan(&f.Id, &f.Name, &f.Path, &f.UploadedBy, &f.DateUploaded)
+	if err != nil {
+		log.Println("got an error")
+		w.WriteHeader(http.StatusNotFound)
+		response["detail"] = "File does not exist"
+		jsonResp, err := json.Marshal(response)
+		if err != nil {
+			log.Printf("File does not exist")
+		}
+		w.Write(jsonResp)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	jsonResp, err := json.Marshal(f)
+	if err != nil {
+		log.Printf("Error encoding File to JSON")
+	}
+	w.Write(jsonResp)
+	return
+}
+
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", apiRoot)
 	router.HandleFunc("/upload", uploadFiles).Methods("POST")
+	router.HandleFunc("/get-file/{id}", getFile).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
